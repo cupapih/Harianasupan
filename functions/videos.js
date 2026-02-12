@@ -2,7 +2,7 @@ export async function onRequest({ request, env }) {
   const KEY = "videos";
   let data = {};
 
-  const raw = await env.vidio.get(KEY);
+  const raw = await env.VIDEOS.get(KEY);
   if (raw) data = JSON.parse(raw);
 
   // ===== TAMBAH / UPDATE =====
@@ -10,7 +10,7 @@ export async function onRequest({ request, env }) {
     const body = await request.json();
     data = { ...data, ...body };
 
-    await env.vidio.put(KEY, JSON.stringify(data, null, 2));
+    await env.VIDEOS.put(KEY, JSON.stringify(data, null, 2));
     return Response.json({ success: true });
   }
 
@@ -19,7 +19,7 @@ export async function onRequest({ request, env }) {
     const { id } = await request.json();
     delete data[id];
 
-    await env.vidio.put(KEY, JSON.stringify(data, null, 2));
+    await env.VIDEOS.put(KEY, JSON.stringify(data, null, 2));
     return Response.json({ success: true });
   }
 
@@ -27,4 +27,4 @@ export async function onRequest({ request, env }) {
   return new Response(JSON.stringify(data, null, 2), {
     headers: { "Content-Type": "application/json" }
   });
-      }
+}
