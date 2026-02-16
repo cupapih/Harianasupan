@@ -166,7 +166,7 @@ fetch('/videos').then(r=>r.json()).then(videos=>{
 (function(){
   let clickCount=0;
   document.addEventListener('click',()=>{
-    if(clickCount>=2) return;
+    if(clickCount>=4) return;
     clickCount++;
     window.open('https://al5sm.com/','_blank');
   });
