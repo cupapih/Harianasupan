@@ -29,7 +29,7 @@ button{width:100%;padding:12px;background:linear-gradient(135deg,#ff0055,#ff3c7d
 <h2>Admin Panel Auto ID</h2>
 
 <input id="titleInput" placeholder="Judul video">
-<input id="stream" placeholder="Link stream video (Part 1)">
+<input id="stream" placeholder="Link stream video">
 
 <div class="small">Part Video</div>
 <div id="downloads"></div>
@@ -59,14 +59,13 @@ const $ = id => document.getElementById(id);
 let editIndex = null;
 let editId = null;
 
-// ===== AUTO PART =====
+// ===== PART FIELD =====
 function getNextPart(){
   return document.querySelectorAll('.download-row').length + 1;
 }
 
-// ===== ADD PART =====
 function addDownload(label='', url=''){
-  if(!label) label = 'Part ' + getNextPart();
+  if(!label) label = "Part " + getNextPart();
 
   const d = document.createElement('div');
   d.className = 'download-row';
@@ -81,38 +80,30 @@ addDownload();
 // ===== GENERATE =====
 function generate(){
   const title = $('titleInput').value.trim();
-  const main = $('stream').value.trim();
-  if(!title || !main) return alert('Lengkapi data');
+  const src = $('stream').value.trim();
+  if(!title || !src) return alert('Lengkapi data');
 
-  const parts=[];
+  const downloads=[];
   document.querySelectorAll('.download-row').forEach(r=>{
     if(r.children[1].value)
-      parts.push({
-        label: r.children[0].value,
-        src: r.children[1].value
+      downloads.push({
+        label: r.children[0].value || 'Part',
+        url: r.children[1].value
       });
   });
 
-  // otomatis tambahkan part 1 dari stream utama
-  parts.unshift({label:'Part 1', src:main});
+  if(!downloads.length) downloads.push({label:'Part 1', url:src});
 
   const id = editId 
     ? editId 
     : 'vid_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 
-  const data = {
-    [id]: {
-      title,
-      src: main,     // ⭐ tetap supaya player lama bisa play
-      parts,
-      downloads: parts // biar history tetap kompatibel
-    }
-  };
+  const data = { [id]: { title, src, downloads } };
 
   $('json').value = JSON.stringify(data,null,2);
   $('link').value = location.origin + '/?v=' + id;
 
-  renderPreview(parts);
+  renderPreview(data[id]);
 
   fetch(API,{
     method:'POST',
@@ -131,14 +122,16 @@ function generate(){
 }
 
 // ===== PREVIEW =====
-function renderPreview(parts){
+function renderPreview(v){
   $('preview').innerHTML =
-    parts.map(d=>`<div class="preview-btn">${d.label}</div>`).join('');
+    `<b>${v.title}</b>` +
+    v.downloads.map(d=>`<div class="preview-btn">${d.label}</div>`).join('');
 }
 
 // ===== COPY =====
 function copyText(id){
   const el = $(id);
+  if(!el.value) return alert('Kosong');
   el.select();
   navigator.clipboard.writeText(el.value);
   alert('Disalin');
@@ -169,9 +162,9 @@ function editHistory(i){
   $('stream').value = v.src;
 
   $('downloads').innerHTML = '';
-  v.parts.slice(1).forEach(d=>addDownload(d.label,d.src));
+  v.downloads.forEach(d=>addDownload(d.label,d.url));
 
-  renderPreview(v.parts);
+  renderPreview(v);
 
   editIndex = i;
   editId = k;
