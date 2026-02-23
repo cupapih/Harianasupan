@@ -26,14 +26,13 @@ button{width:100%;padding:12px;background:linear-gradient(135deg,#ff0055,#ff3c7d
 <body>
 
 <div class="page">
-<h2>Admin Panel Auto ID</h2>
+<h2>Admin Panel Part Video</h2>
 
 <input id="titleInput" placeholder="Judul video">
-<input id="stream" placeholder="Link stream video">
 
-<div class="small">Tombol Download</div>
+<div class="small">Part Video (langsung play)</div>
 <div id="downloads"></div>
-<button class="small-btn btn-gray" onclick="addDownload()">➕ Tambah tombol</button>
+<button class="small-btn btn-gray" onclick="addDownload()">➕ Tambah Part</button>
 
 <br><br>
 <button onclick="generate()">Generate</button>
@@ -44,7 +43,7 @@ button{width:100%;padding:12px;background:linear-gradient(135deg,#ff0055,#ff3c7d
 <div class="small">JSON Output</div>
 <textarea id="json" rows="8" readonly></textarea>
 
-<div class="small">Link Stream (per video)</div>
+<div class="small">Link Stream</div>
 <textarea id="link" rows="2" readonly></textarea>
 <button class="small-btn btn-gray" onclick="copyText('link')">📋 Salin Link</button>
 
@@ -59,55 +58,55 @@ const $ = id => document.getElementById(id);
 let editIndex = null;
 let editId = null;
 
-// ===== DOWNLOAD FIELD =====
+function getNextPart(){
+  return document.querySelectorAll('.download-row').length + 1;
+}
+
 function addDownload(label='', url=''){
+  if(!label) label = 'Part ' + getNextPart();
+
   const d = document.createElement('div');
   d.className = 'download-row';
   d.innerHTML = `
-    <input placeholder="Judul" value="${label}">
-    <input placeholder="Link" value="${url}">
+    <input placeholder="Judul Part" value="${label}">
+    <input placeholder="Link Video / Embed" value="${url}">
     <button class="btn-gray" onclick="this.parentNode.remove()">❌</button>`;
   $('downloads').appendChild(d);
 }
 addDownload();
 
-// ===== GENERATE =====
 function generate(){
   const title = $('titleInput').value.trim();
-  const src = $('stream').value.trim();
-  if(!title || !src) return alert('Lengkapi data');
+  if(!title) return alert('Isi judul');
 
-  const downloads=[];
+  const parts=[];
   document.querySelectorAll('.download-row').forEach(r=>{
     if(r.children[1].value)
-      downloads.push({
-        label: r.children[0].value || 'Download',
-        url: r.children[1].value
+      parts.push({
+        label: r.children[0].value,
+        src: r.children[1].value
       });
   });
 
-  if(!downloads.length) downloads.push({label:'Download', url:src});
+  if(!parts.length) return alert("Isi minimal 1 part");
 
-  // ===== KEEP ID WHEN EDIT =====
   const id = editId 
     ? editId 
     : 'vid_' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 
-  const data = { [id]: { title, src, downloads } };
+  const data = { [id]: { title, parts } };
 
   $('json').value = JSON.stringify(data,null,2);
   $('link').value = location.origin + '/?v=' + id;
 
-  renderPreview(data[id]);
+  renderPreview(parts);
 
-  // ===== SAVE TO KV =====
   fetch(API,{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify(data)
   });
 
-  // ===== HISTORY =====
   let h = JSON.parse(localStorage.getItem('history')||'[]');
   editIndex !== null ? (h[editIndex] = data) : h.unshift(data);
   localStorage.setItem('history', JSON.stringify(h.slice(0,10)));
@@ -118,23 +117,18 @@ function generate(){
   renderHistory();
 }
 
-// ===== PREVIEW =====
-function renderPreview(v){
+function renderPreview(parts){
   $('preview').innerHTML =
-    `<b>${v.title}</b>` +
-    v.downloads.map(d=>`<div class="preview-btn">${d.label}</div>`).join('');
+    parts.map(d=>`<div class="preview-btn">${d.label}</div>`).join('');
 }
 
-// ===== COPY =====
 function copyText(id){
   const el = $(id);
-  if(!el.value) return alert('Kosong');
   el.select();
   navigator.clipboard.writeText(el.value);
   alert('Disalin');
 }
 
-// ===== HISTORY =====
 function renderHistory(){
   const h = JSON.parse(localStorage.getItem('history')||'[]');
   $('history').innerHTML = '';
@@ -156,18 +150,15 @@ function editHistory(i){
   const k = Object.keys(o)[0], v = o[k];
 
   $('titleInput').value = v.title;
-  $('stream').value = v.src;
-
   $('downloads').innerHTML = '';
-  v.downloads.forEach(d=>addDownload(d.label,d.url));
+  v.parts.forEach(d=>addDownload(d.label,d.src));
 
-  renderPreview(v);
+  renderPreview(v.parts);
 
   editIndex = i;
   editId = k;
 }
 
-// ===== DELETE =====
 function del(i){
   const h = JSON.parse(localStorage.getItem('history'));
   const id = Object.keys(h[i])[0];
