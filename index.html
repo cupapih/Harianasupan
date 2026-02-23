@@ -34,16 +34,6 @@ select{width:40px;height:40px;background:#111827;border:1px solid #1f2937;color:
 .popup.show{display:flex}
 .popup-bg{position:absolute;inset:0;background:rgba(0,0,0,.6)}
 .popup-box{position:relative;width:95%;max-width:520px;max-height:70vh;background:#0b1020;border-radius:16px 16px 0 0;padding:16px;overflow-y:auto}
-
-#cihuy{
-  position:fixed;left:50%;bottom:-50px;transform:translateX(-50%);
-  font-size:22px;font-weight:700;animation:cihuy 2s ease forwards
-}
-@keyframes cihuy{
-  0%{bottom:-50px;opacity:0}
-  30%{bottom:50%;opacity:1}
-  100%{bottom:120%;opacity:0}
-}
 </style>
 </head>
 
@@ -61,7 +51,7 @@ select{width:40px;height:40px;background:#111827;border:1px solid #1f2937;color:
   </div>
 </div>
 
-<video id="player" playsinline></video>
+<video id="player" playsinline controls></video>
 
 <div class="controls">
   <div id="fs" class="ctrl">⛶</div>
@@ -89,6 +79,21 @@ select{width:40px;height:40px;background:#111827;border:1px solid #1f2937;color:
 const FIREBASE='https://views-counter-610fa-default-rtdb.asia-southeast1.firebasedatabase.app';
 const id=new URLSearchParams(location.search).get('v');
 
+const app=app=document.getElementById('app');
+const title=document.getElementById('title');
+const player=document.getElementById('player');
+const playBtn=document.getElementById('playBtn');
+const rewind=document.getElementById('rewind');
+const forward=document.getElementById('forward');
+const fs=document.getElementById('fs');
+const speed=document.getElementById('speed');
+const popup=document.getElementById('popup');
+const popupBox=document.getElementById('popupBox');
+const views=document.getElementById('views');
+const onlineText=document.getElementById('onlineText');
+const dot=document.getElementById('dot');
+const openFull=document.getElementById('openFull');
+
 fetch('/videos').then(r=>r.json()).then(videos=>{
   if(!id||!videos[id])return;
   const v=videos[id];
@@ -103,27 +108,33 @@ fetch('/videos').then(r=>r.json()).then(videos=>{
   fs.onclick=()=>!document.fullscreenElement?player.requestFullscreen():document.exitFullscreen();
   speed.onchange=e=>player.playbackRate=parseFloat(e.target.value);
 
+  /* ===== FIX PART PLAY ===== */
   openFull.onclick=()=>{
     popupBox.innerHTML='<h3 style="text-align:center">📂 FULL KONTEN</h3>';
+
     (v.downloads||[]).forEach((d,i)=>{
       const row=document.createElement('div');
       row.style.cssText='display:flex;justify-content:space-between;padding:10px;background:#111827;border-radius:10px;margin-bottom:8px';
+
       row.innerHTML=`
-        <span>${d.label||'Link '+(i+1)}</span>
-        <a href="${d.url}" target="_blank"
-          style="padding:6px 14px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none">BUKA</a>`;
+        <span>${d.label||'Part '+(i+1)}</span>
+        <button style="padding:6px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer">PLAY</button>`;
+
+      row.querySelector('button').onclick=()=>{
+        player.src=d.url;
+        player.play();
+        popup.classList.remove('show');
+      };
+
       popupBox.appendChild(row);
     });
-    popup.classList.add('show');
 
-    const n=document.createElement('div');
-    n.id='cihuy';n.textContent='CIHUY🗿';
-    document.body.appendChild(n);
-    setTimeout(()=>n.remove(),2000);
+    popup.classList.add('show');
   };
 
   document.querySelector('.popup-bg').onclick=()=>popup.classList.remove('show');
 
+  /* ===== VIEW COUNTER ===== */
   fetch(`${FIREBASE}/views/${id}.json`).then(r=>r.json()).then(d=>{
     fetch(`${FIREBASE}/views/${id}.json`,{
       method:'PUT',
@@ -137,6 +148,7 @@ fetch('/videos').then(r=>r.json()).then(videos=>{
       .then(d=>views.textContent=(typeof d==='number'?d:0)+' views');
   },3000);
 
+  /* ===== ONLINE COUNTER ===== */
   const sid=Math.random().toString(36).slice(2);
   setInterval(()=>{
     fetch(`${FIREBASE}/online/${id}/${sid}.json`,{method:'PUT',body:Date.now()});
@@ -161,7 +173,7 @@ fetch('/videos').then(r=>r.json()).then(videos=>{
   .appendChild(document.createElement('script')));
 </script>
 
-<!-- POPUNDER KLIK 1 & 2 -->
+<!-- POPUNDER CLICK -->
 <script>
 (function(){
   let clickCount=0;
