@@ -18,10 +18,16 @@ h1{font-size:18px;margin:6px 0}
 .dot{width:8px;height:8px;border-radius:50%;background:#22ff00;opacity:.2}
 .dot.on{animation:blink 1.2s infinite}
 @keyframes blink{50%{opacity:1}}
+.videoBox{position:relative}
 video,iframe{width:100%;border-radius:14px;background:#000;margin:12px 0;height:420px}
+.playOverlay{
+position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radius:50%;
+border:none;font-size:26px;background:linear-gradient(135deg,#3b82f6,#2563eb);
+color:#fff;cursor:pointer
+}
 .controls{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
 .ctrl{width:40px;height:40px;border-radius:10px;background:#111827;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.play-btn{width:72px;height:72px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),#2563eb);cursor:pointer;color:#fff;font-size:20px}
+.play-btn{width:72px;height:72px;border-radius:50%;border:none;background:linear-gradient(135deg,#3b82f6,#2563eb);cursor:pointer;color:#fff;font-size:20px}
 .full-btn{width:100%;margin-top:14px;padding:14px;border-radius:12px;background:#111827;border:1px solid #1f2937;color:#fff;font-weight:600;cursor:pointer}
 .popup{position:fixed;inset:0;display:none;justify-content:center;align-items:flex-end;z-index:999}
 .popup.show{display:flex}
@@ -45,28 +51,22 @@ video,iframe{width:100%;border-radius:14px;background:#000;margin:12px 0;height:
 </div>
 </div>
 
-<!-- VIDEO -->
-<div id="videoWrap" style="position:relative">
+<div class="videoBox">
 <video id="player" playsinline controls></video>
-<button id="playOverlay"
-style="position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radius:50%;border:none;font-size:26px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;cursor:pointer">
-▶
-</button>
+<button id="playOverlay" class="playOverlay">▶</button>
 </div>
 
-<!-- CONTROLS -->
 <div class="controls">
 <div id="rewind" class="ctrl">⏪</div>
 <button id="playBtn" class="play-btn">▶</button>
 <div id="forward" class="ctrl">⏩</div>
 </div>
 
-<button id="openFull" class="full-btn">FULL KONTEN📁</button>
+<button id="openFull" class="full-btn">FULL KONTEN</button>
 
 </div>
 </div>
 
-<!-- POPUP -->
 <div id="popup" class="popup">
 <div class="popup-bg"></div>
 <div class="popup-box" id="popupBox"></div>
@@ -75,9 +75,11 @@ style="position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radiu
 <script>
 const FIREBASE='https://views-counter-610fa-default-rtdb.asia-southeast1.firebasedatabase.app';
 const id=new URLSearchParams(location.search).get('v');
-let player=document.getElementById('player');
 
-/* ===== IKLAN WAJIB 3x ===== */
+const player=document.getElementById('player');
+const overlay=document.getElementById('playOverlay');
+
+/* ===== IKLAN 3x ===== */
 let adCount=0;
 const MAX_AD=3;
 
@@ -90,19 +92,16 @@ return;
 player.play();
 }
 
-/* ===== LOAD VIDEO ===== */
-function playVideo(url){
-
-const wrap=document.getElementById('videoWrap');
-
-wrap.innerHTML=`
-<video id="player" playsinline controls style="width:100%;height:420px;border-radius:14px;background:#000"></video>
-<button id="playOverlay" style="position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radius:50%;border:none;font-size:26px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;cursor:pointer">▶</button>
-`;
-
-player=document.getElementById('player');
-const overlay=document.getElementById('playOverlay');
 overlay.onclick=tryPlay;
+playBtn.onclick=tryPlay;
+rewind.onclick=()=>player.currentTime-=5;
+forward.onclick=()=>player.currentTime+=5;
+
+player.onplay=()=>overlay.style.display="none";
+player.onpause=()=>overlay.style.display="block";
+
+/* ===== PLAY VIDEO (TANPA GANTI ELEMENT) ===== */
+function playVideo(url){
 
 /* STREAMTAPE */
 if(url.includes("streamtape.com")){
@@ -122,14 +121,14 @@ const iframe=document.createElement("iframe");
 iframe.src=url;
 iframe.allowFullscreen=true;
 iframe.style="width:100%;height:420px;border:none;border-radius:14px";
-wrap.innerHTML="";
-wrap.appendChild(iframe);
+player.replaceWith(iframe);
+overlay.style.display="none";
 return;
 }
 
 player.src=url;
-player.onplay=()=>overlay.style.display="none";
-player.onpause=()=>overlay.style.display="block";
+player.load();
+overlay.style.display="block";
 }
 
 /* ===== FETCH DATA ===== */
@@ -140,11 +139,6 @@ const v=videos[id];
 app.classList.remove('hidden');
 title.textContent=v.title;
 playVideo(v.src);
-
-/* controls */
-playBtn.onclick=tryPlay;
-rewind.onclick=()=>player.currentTime-=5;
-forward.onclick=()=>player.currentTime+=5;
 
 /* FULL KONTEN */
 openFull.onclick=()=>{
@@ -204,7 +198,7 @@ dot.classList.toggle('on',c>0);
 });
 </script>
 
-<!-- POPUNDER ZONE -->
+<!-- POPUNDER -->
 <script>
 (function(s){
 s.dataset.zone='9713245';
