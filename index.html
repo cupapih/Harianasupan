@@ -21,8 +21,12 @@ h1{font-size:18px;margin:6px 0}
 video,iframe{width:100%;border-radius:14px;background:#000;margin:12px 0;height:420px}
 .controls{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
 .ctrl{width:40px;height:40px;border-radius:10px;background:#111827;display:flex;align-items:center;justify-content:center;cursor:pointer}
-select{width:40px;height:40px;background:#111827;border:1px solid #1f2937;color:#fff;border-radius:10px;text-align:center}
+.play-btn{width:72px;height:72px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),#2563eb);cursor:pointer;color:#fff;font-size:20px}
 .full-btn{width:100%;margin-top:14px;padding:14px;border-radius:12px;background:#111827;border:1px solid #1f2937;color:#fff;font-weight:600;cursor:pointer}
+.popup{position:fixed;inset:0;display:none;justify-content:center;align-items:flex-end;z-index:999}
+.popup.show{display:flex}
+.popup-bg{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.popup-box{position:relative;width:95%;max-width:520px;max-height:70vh;background:#0b1020;border-radius:16px 16px 0 0;padding:16px;overflow-y:auto}
 </style>
 </head>
 
@@ -41,27 +45,31 @@ select{width:40px;height:40px;background:#111827;border:1px solid #1f2937;color:
 </div>
 </div>
 
+<!-- VIDEO -->
 <div id="videoWrap" style="position:relative">
 <video id="player" playsinline controls></video>
 <button id="playOverlay"
-style="position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radius:50%;border:none;font-size:26px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;cursor:pointer;">
+style="position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radius:50%;border:none;font-size:26px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;cursor:pointer">
 ▶
 </button>
 </div>
 
+<!-- CONTROLS -->
 <div class="controls">
-<div id="fs" class="ctrl">⛶</div>
 <div id="rewind" class="ctrl">⏪</div>
+<button id="playBtn" class="play-btn">▶</button>
 <div id="forward" class="ctrl">⏩</div>
-<select id="speed">
-<option value="1">1x</option>
-<option value="1.25">1.25x</option>
-<option value="1.5">1.5x</option>
-<option value="2">2x</option>
-</select>
 </div>
 
+<button id="openFull" class="full-btn">FULL KONTEN📁</button>
+
 </div>
+</div>
+
+<!-- POPUP -->
+<div id="popup" class="popup">
+<div class="popup-bg"></div>
+<div class="popup-box" id="popupBox"></div>
 </div>
 
 <script>
@@ -69,59 +77,104 @@ const FIREBASE='https://views-counter-610fa-default-rtdb.asia-southeast1.firebas
 const id=new URLSearchParams(location.search).get('v');
 let player=document.getElementById('player');
 
-/* ===== PLAYER BUILDER ===== */
-function createPlayer(){
-const wrap=document.getElementById('videoWrap');
-wrap.innerHTML=`
-<video id="player" playsinline controls style="width:100%;height:420px;border-radius:14px;background:#000"></video>
-<button id="playOverlay" style="position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radius:50%;border:none;font-size:26px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;cursor:pointer;">▶</button>
-`;
-player=document.getElementById('player');
-const overlay=document.getElementById('playOverlay');
+/* ===== IKLAN WAJIB 3x ===== */
+let adCount=0;
+const MAX_AD=3;
 
-overlay.onclick=()=>player.play();
-player.onplay=()=>overlay.style.display="none";
-player.onpause=()=>overlay.style.display="block";
+function tryPlay(){
+if(adCount<MAX_AD){
+window.open('https://omg10.com/4/9707196','_blank');
+adCount++;
+return;
+}
+player.play();
 }
 
 /* ===== LOAD VIDEO ===== */
 function playVideo(url){
-createPlayer();
 
+const wrap=document.getElementById('videoWrap');
+
+wrap.innerHTML=`
+<video id="player" playsinline controls style="width:100%;height:420px;border-radius:14px;background:#000"></video>
+<button id="playOverlay" style="position:absolute;inset:0;margin:auto;width:80px;height:80px;border-radius:50%;border:none;font-size:26px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;cursor:pointer">▶</button>
+`;
+
+player=document.getElementById('player');
+const overlay=document.getElementById('playOverlay');
+overlay.onclick=tryPlay;
+
+/* STREAMTAPE */
 if(url.includes("streamtape.com")){
 const m=url.match(/\/v\/([^\/]+)/);
 if(m) url="https://streamtape.com/get_video?id="+m[1];
 }
 
+/* VIDEY */
 if(url.includes("videy.co")){
 const m=url.match(/id=([^&]+)/);
 if(m) url="https://cdn.videy.co/"+m[1]+".mp4";
 }
 
-player.src=url;
+/* iframe fallback */
+if(!url.includes(".mp4") && !url.includes("get_video")){
+const iframe=document.createElement("iframe");
+iframe.src=url;
+iframe.allowFullscreen=true;
+iframe.style="width:100%;height:420px;border:none;border-radius:14px";
+wrap.innerHTML="";
+wrap.appendChild(iframe);
+return;
 }
 
-/* ===== LOAD DATA ===== */
-fetch('/videos')
-.then(r=>r.json())
-.then(videos=>{
-if(!id||!videos[id]) return;
+player.src=url;
+player.onplay=()=>overlay.style.display="none";
+player.onpause=()=>overlay.style.display="block";
+}
 
+/* ===== FETCH DATA ===== */
+fetch('/videos').then(r=>r.json()).then(videos=>{
+if(!id||!videos[id])return;
 const v=videos[id];
-document.getElementById('app').classList.remove('hidden');
-document.getElementById('title').textContent=v.title;
 
+app.classList.remove('hidden');
+title.textContent=v.title;
 playVideo(v.src);
 
-document.getElementById('rewind').onclick=()=>player.currentTime-=5;
-document.getElementById('forward').onclick=()=>player.currentTime+=5;
-document.getElementById('fs').onclick=()=>!document.fullscreenElement?player.requestFullscreen():document.exitFullscreen();
-document.getElementById('speed').onchange=e=>player.playbackRate=parseFloat(e.target.value);
+/* controls */
+playBtn.onclick=tryPlay;
+rewind.onclick=()=>player.currentTime-=5;
+forward.onclick=()=>player.currentTime+=5;
+
+/* FULL KONTEN */
+openFull.onclick=()=>{
+popupBox.innerHTML='<h3 style="text-align:center">📂 FULL KONTEN</h3>';
+
+(v.downloads||[]).forEach(d=>{
+const row=document.createElement('div');
+row.style.cssText='display:flex;justify-content:space-between;padding:10px;background:#111827;border-radius:10px;margin-bottom:8px';
+
+row.innerHTML=`
+<span>${d.label}</span>
+<button style="padding:6px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff">PLAY</button>
+`;
+
+row.querySelector('button').onclick=()=>{
+adCount=0;
+playVideo(d.url);
+popup.classList.remove('show');
+};
+
+popupBox.appendChild(row);
+});
+
+popup.classList.add('show');
+};
+
+document.querySelector('.popup-bg').onclick=()=>popup.classList.remove('show');
 
 /* ===== VIEWS ===== */
-fetch(`${FIREBASE}/views/${id}.json`)
-.then(r=>r.json())
-.then(d=>{
+fetch(`${FIREBASE}/views/${id}.json`).then(r=>r.json()).then(d=>{
 fetch(`${FIREBASE}/views/${id}.json`,{
 method:'PUT',
 body:JSON.stringify((typeof d==='number'?d:0)+1)
@@ -149,24 +202,6 @@ dot.classList.toggle('on',c>0);
 },4000);
 
 });
-
-/* ===== WAJIB 3 IKLAN SEBELUM PLAY ===== */
-(function(){
-let adCount=0;
-document.addEventListener('click',function(e){
-const wrap=document.getElementById('videoWrap');
-if(!wrap) return;
-if(!wrap.contains(e.target)) return;
-
-if(adCount<3){
-e.preventDefault();
-e.stopPropagation();
-window.open('https://omg10.com/4/9707196','_blank');
-adCount++;
-return false;
-}
-},true);
-})();
 </script>
 
 <!-- POPUNDER ZONE -->
@@ -174,7 +209,8 @@ return false;
 (function(s){
 s.dataset.zone='9713245';
 s.src='https://al5sm.com/tag.min.js';
-})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+})([document.documentElement,document.body].filter(Boolean).pop()
+.appendChild(document.createElement('script')));
 </script>
 
 </body>
