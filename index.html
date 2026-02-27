@@ -21,7 +21,6 @@ h1{font-size:18px;margin:6px 0}
 video,iframe{width:100%;border-radius:14px;background:#000;margin:12px 0;height:420px}
 .controls{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
 .ctrl{width:40px;height:40px;border-radius:10px;background:#111827;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.play-btn{width:72px;height:72px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),#2563eb);cursor:pointer}
 select{width:40px;height:40px;background:#111827;border:1px solid #1f2937;color:#fff;border-radius:10px;text-align:center}
 .full-btn{width:100%;margin-top:14px;padding:14px;border-radius:12px;background:#111827;border:1px solid #1f2937;color:#fff;font-weight:600;cursor:pointer}
 .popup{position:fixed;inset:0;display:none;justify-content:center;align-items:flex-end;z-index:999}
@@ -45,12 +44,28 @@ select{width:40px;height:40px;background:#111827;border:1px solid #1f2937;color:
 </div>
 </div>
 
+<div id="videoWrap" style="position:relative">
 <video id="player" playsinline controls></video>
+<button id="playOverlay"
+style="
+position:absolute;
+inset:0;
+margin:auto;
+width:80px;
+height:80px;
+border-radius:50%;
+border:none;
+font-size:26px;
+background:linear-gradient(135deg,#3b82f6,#2563eb);
+color:#fff;
+cursor:pointer;">
+▶
+</button>
+</div>
 
 <div class="controls">
 <div id="fs" class="ctrl">⛶</div>
 <div id="rewind" class="ctrl">⏪</div>
-<button id="playBtn" class="play-btn">▶</button>
 <div id="forward" class="ctrl">⏩</div>
 <select id="speed">
 <option value="1">1x</option>
@@ -74,42 +89,70 @@ const FIREBASE='https://views-counter-610fa-default-rtdb.asia-southeast1.firebas
 const id=new URLSearchParams(location.search).get('v');
 let player=document.getElementById('player');
 
+function createOverlayPlayer(){
+const wrap=document.getElementById('videoWrap');
+
+const newPlayer=document.createElement("video");
+newPlayer.id="player";
+newPlayer.controls=true;
+newPlayer.playsInline=true;
+newPlayer.style="width:100%;height:420px;border-radius:14px;background:#000";
+
+const overlay=document.createElement("button");
+overlay.id="playOverlay";
+overlay.textContent="▶";
+overlay.style=`
+position:absolute;
+inset:0;
+margin:auto;
+width:80px;
+height:80px;
+border-radius:50%;
+border:none;
+font-size:26px;
+background:linear-gradient(135deg,#3b82f6,#2563eb);
+color:#fff;
+cursor:pointer;
+`;
+
+wrap.innerHTML="";
+wrap.appendChild(newPlayer);
+wrap.appendChild(overlay);
+
+player=newPlayer;
+
+overlay.onclick=()=>player.play();
+player.onpause=()=>overlay.style.display="block";
+player.onplay=()=>overlay.style.display="none";
+player.onended=()=>overlay.style.display="block";
+}
+
 function playVideo(url){
 
-  // reset player
-  const old=document.getElementById('player');
-  const newPlayer=document.createElement("video");
-  newPlayer.id="player";
-  newPlayer.controls=true;
-  newPlayer.playsInline=true;
-  old.replaceWith(newPlayer);
-  player=newPlayer;
+createOverlayPlayer();
 
-  // STREAMTAPE AUTO FIX
-  if(url.includes("streamtape.com")){
-    const m=url.match(/\/v\/([^\/]+)/);
-    if(m) url="https://streamtape.com/get_video?id="+m[1];
-  }
+if(url.includes("streamtape.com")){
+const m=url.match(/\/v\/([^\/]+)/);
+if(m) url="https://streamtape.com/get_video?id="+m[1];
+}
 
-  // VIDEY AUTO FIX
-  if(url.includes("videy.co")){
-    const m=url.match(/id=([^&]+)/);
-    if(m) url="https://cdn.videy.co/"+m[1]+".mp4";
-  }
+if(url.includes("videy.co")){
+const m=url.match(/id=([^&]+)/);
+if(m) url="https://cdn.videy.co/"+m[1]+".mp4";
+}
 
-  // iframe fallback
-  if(!url.includes(".mp4") && !url.includes("get_video")){
-    const iframe=document.createElement("iframe");
-    iframe.id="player";
-    iframe.src=url;
-    iframe.allowFullscreen=true;
-    iframe.style="width:100%;height:420px;border:none;border-radius:14px";
-    player.replaceWith(iframe);
-    return;
-  }
+if(!url.includes(".mp4") && !url.includes("get_video")){
+const wrap=document.getElementById('videoWrap');
+const iframe=document.createElement("iframe");
+iframe.src=url;
+iframe.allowFullscreen=true;
+iframe.style="width:100%;height:420px;border:none;border-radius:14px";
+wrap.innerHTML="";
+wrap.appendChild(iframe);
+return;
+}
 
-  player.src=url;
-  player.play().catch(()=>{});
+player.src=url;
 }
 
 fetch('/videos').then(r=>r.json()).then(videos=>{
@@ -121,86 +164,43 @@ title.textContent=v.title;
 
 playVideo(v.src);
 
-playBtn.onclick=()=>player.paused?player.play():player.pause();
 rewind.onclick=()=>player.currentTime-=5;
 forward.onclick=()=>player.currentTime+=5;
 fs.onclick=()=>!document.fullscreenElement?player.requestFullscreen():document.exitFullscreen();
 speed.onchange=e=>player.playbackRate=parseFloat(e.target.value);
-
-openFull.onclick=()=>{
-popupBox.innerHTML='<h3 style="text-align:center">📂 FULL KONTEN</h3>';
-
-(v.downloads||[]).forEach(d=>{
-const row=document.createElement('div');
-row.style.cssText='display:flex;justify-content:space-between;padding:10px;background:#111827;border-radius:10px;margin-bottom:8px';
-
-row.innerHTML=`
-<span>${d.label}</span>
-<button style="padding:6px 14px;border:none;border-radius:8px;background:#2563eb;color:#fff">PLAY</button>
-`;
-
-row.querySelector('button').onclick=()=>{
-  playVideo(d.url);
-  popup.classList.remove('show');
-};
-
-popupBox.appendChild(row);
 });
 
-popup.classList.add('show');
-};
+/* ===== IKLAN WAJIB 3x SEBELUM PLAY VIDEO ===== */
+(function(){
+let adCount = 0;
+const MAX_AD = 3;
 
-document.querySelector('.popup-bg').onclick=()=>popup.classList.remove('show');
+function handleVideoClick(e){
+const wrap=document.getElementById('videoWrap');
+if(!wrap) return;
+if(!wrap.contains(e.target)) return;
 
-/* ===== VIEWS ===== */
-fetch(`${FIREBASE}/views/${id}.json`).then(r=>r.json()).then(d=>{
-fetch(`${FIREBASE}/views/${id}.json`,{
-method:'PUT',
-body:JSON.stringify((typeof d==='number'?d:0)+1)
-});
-});
+if(adCount < MAX_AD){
+e.preventDefault();
+e.stopPropagation();
+window.open('https://omg10.com/4/9707196','_blank');
+adCount++;
+return false;
+}
 
-setInterval(()=>{
-fetch(`${FIREBASE}/views/${id}.json`)
-.then(r=>r.json())
-.then(d=>views.textContent=(typeof d==='number'?d:0)+' views');
-},3000);
+document.removeEventListener('click', handleVideoClick, true);
+}
 
-/* ===== ONLINE ===== */
-const sid=Math.random().toString(36).slice(2);
-setInterval(()=>{
-fetch(`${FIREBASE}/online/${id}/${sid}.json`,{method:'PUT',body:Date.now()});
-fetch(`${FIREBASE}/online/${id}.json`)
-.then(r=>r.json())
-.then(d=>{
-let c=0,now=Date.now();
-for(let k in d) if(now-d[k]<10000) c++;
-onlineText.textContent=c+' online';
-dot.classList.toggle('on',c>0);
-});
-},4000);
-
-});
+document.addEventListener('click', handleVideoClick, true);
+})();
 </script>
 
-<!-- IKLAN -->
+<!-- POPUNDER ZONE (script kamu) -->
 <script>
 (function(s){
 s.dataset.zone='9713245';
 s.src='https://al5sm.com/tag.min.js';
-})([document.documentElement,document.body].filter(Boolean).pop()
-.appendChild(document.createElement('script')));
-</script>
-
-<script>
-(function(){
-let clickCount=0;
-document.addEventListener('click',()=>{
-if(clickCount>=4)return;
-clickCount++;
-window.open('https://al5sm.com/','_blank');
-});
-})();
+})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
 </script>
 
 </body>
