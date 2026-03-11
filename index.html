@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Stream</title>
+<title>Harian Asupan</title>
 
 <style>
 :root{--bg:#05060f;--panel:#0b1020;--accent:#3b82f6;--text:#e5e7eb;--muted:#9ca3af}
@@ -73,49 +73,105 @@ color:#fff;cursor:pointer
 </div>
 
 <script>
+
 const FIREBASE='https://views-counter-610fa-default-rtdb.asia-southeast1.firebasedatabase.app';
 const id=new URLSearchParams(location.search).get('v');
 
 const player=document.getElementById('player');
 const overlay=document.getElementById('playOverlay');
 
-/* ===== IKLAN 3x ===== */
-let adCount=0;
-const MAX_AD=1;
+/* =========================
+   DIRECTLINK CONFIG
+========================= */
+
+const AD_LINK="https://omg10.com/4/9707196";
+
+let playerAdReady=true;
+let pageAdReady=true;
+
+/* =========================
+   PLAYER AD
+========================= */
+
+function playerAd(){
+
+if(playerAdReady){
+
+window.open(AD_LINK,'_blank');
+
+playerAdReady=false;
+
+setTimeout(()=>{
+playerAdReady=true;
+},10000);
+
+return true;
+
+}
+
+return false;
+
+}
+
+/* =========================
+   PAGE POPUNDER AD
+========================= */
+
+document.addEventListener("click",function(e){
+
+if(e.target.id==="playBtn" || e.target.id==="playOverlay") return;
+
+if(pageAdReady){
+
+window.open(AD_LINK,'_blank');
+
+pageAdReady=false;
+
+setTimeout(()=>{
+pageAdReady=true;
+},10000);
+
+}
+
+});
+
+/* =========================
+   PLAYER CONTROL
+========================= */
 
 function tryPlay(){
-if(adCount<MAX_AD){
-window.open('https://omg10.com/4/9707196','_blank');
-adCount++;
-return;
-}
+
+if(playerAd()) return;
+
 player.play();
+
 }
 
 overlay.onclick=tryPlay;
 playBtn.onclick=tryPlay;
+
 rewind.onclick=()=>player.currentTime-=5;
 forward.onclick=()=>player.currentTime+=5;
 
 player.onplay=()=>overlay.style.display="none";
 player.onpause=()=>overlay.style.display="block";
 
-/* ===== PLAY VIDEO (TANPA GANTI ELEMENT) ===== */
+/* =========================
+   PLAY VIDEO
+========================= */
+
 function playVideo(url){
 
-/* STREAMTAPE */
 if(url.includes("streamtape.com")){
 const m=url.match(/\/v\/([^\/]+)/);
 if(m) url="https://streamtape.com/get_video?id="+m[1];
 }
 
-/* VIDEY */
 if(url.includes("videy.co")){
 const m=url.match(/id=([^&]+)/);
 if(m) url="https://cdn.videy.co/"+m[1]+".mp4";
 }
 
-/* iframe fallback */
 if(!url.includes(".mp4") && !url.includes("get_video")){
 const iframe=document.createElement("iframe");
 iframe.src=url;
@@ -129,23 +185,35 @@ return;
 player.src=url;
 player.load();
 overlay.style.display="block";
+
 }
 
-/* ===== FETCH DATA ===== */
+/* =========================
+   FETCH VIDEO DATA
+========================= */
+
 fetch('/videos').then(r=>r.json()).then(videos=>{
+
 if(!id||!videos[id])return;
+
 const v=videos[id];
 
 app.classList.remove('hidden');
+
 title.textContent=v.title;
+
 playVideo(v.src);
 
-/* FULL KONTEN */
+/* ===== FULL CONTENT ===== */
+
 openFull.onclick=()=>{
+
 popupBox.innerHTML='<h3 style="text-align:center">📂 FULL KONTEN</h3>';
 
 (v.downloads||[]).forEach(d=>{
+
 const row=document.createElement('div');
+
 row.style.cssText='display:flex;justify-content:space-between;padding:10px;background:#111827;border-radius:10px;margin-bottom:8px';
 
 row.innerHTML=`
@@ -154,20 +222,29 @@ row.innerHTML=`
 `;
 
 row.querySelector('button').onclick=()=>{
-adCount=0;
+
+playerAd();
+
 playVideo(d.url);
+
 popup.classList.remove('show');
+
 };
 
 popupBox.appendChild(row);
+
 });
 
 popup.classList.add('show');
+
 };
 
 document.querySelector('.popup-bg').onclick=()=>popup.classList.remove('show');
 
-/* ===== VIEWS ===== */
+/* =========================
+   VIEWS COUNTER
+========================= */
+
 fetch(`${FIREBASE}/views/${id}.json`).then(r=>r.json()).then(d=>{
 fetch(`${FIREBASE}/views/${id}.json`,{
 method:'PUT',
@@ -181,30 +258,37 @@ fetch(`${FIREBASE}/views/${id}.json`)
 .then(d=>views.textContent=(typeof d==='number'?d:0)+' views');
 },3000);
 
-/* ===== ONLINE ===== */
+/* =========================
+   ONLINE COUNTER
+========================= */
+
 const sid=Math.random().toString(36).slice(2);
+
 setInterval(()=>{
-fetch(`${FIREBASE}/online/${id}/${sid}.json`,{method:'PUT',body:Date.now()});
+
+fetch(`${FIREBASE}/online/${id}/${sid}.json`,{
+method:'PUT',
+body:Date.now()
+});
+
 fetch(`${FIREBASE}/online/${id}.json`)
 .then(r=>r.json())
 .then(d=>{
+
 let c=0,now=Date.now();
+
 for(let k in d) if(now-d[k]<10000) c++;
+
 onlineText.textContent=c+' online';
+
 dot.classList.toggle('on',c>0);
+
 });
+
 },4000);
 
 });
-</script>
 
-<!-- POPUNDER -->
-<script>
-(function(s){
-s.dataset.zone='9713245';
-s.src='https://al5sm.com/tag.min.js';
-})([document.documentElement,document.body].filter(Boolean).pop()
-.appendChild(document.createElement('script')));
 </script>
 
 </body>
